@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ビンゴ抽選機</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e9eef7; --panel:#ffffff; --ink:#1b2236; --muted:#5d6783; --line:#cfd7e8;
+  --btn:#1b2236; --btn-ink:#ffffff;
+  --c0:#2f6fe4; --c1:#e5484d; --c2:#7b4fd1; --c3:#2fa56a; --c4:#e59a0e;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141a2e; --panel:#1e2542; --ink:#eef1fb; --muted:#9aa4c4; --line:#323b61;
+    --btn:#eef1fb; --btn-ink:#141a2e;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141a2e; --panel:#1e2542; --ink:#eef1fb; --muted:#9aa4c4; --line:#323b61;
+  --btn:#eef1fb; --btn-ink:#141a2e;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+  font-weight:500; -webkit-tap-highlight-color:transparent;
+}
+main{max-width:520px; margin:0 auto; padding:16px 16px 40px}
+header{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px}
+h1{font-size:18px; font-weight:800; margin:0}
+.count{font-size:14px; color:var(--muted); font-variant-numeric:tabular-nums}
+
+.stage{display:grid; place-items:center; padding:18px 0 22px}
+.ball{
+  --ball:#8a93a8;
+  width:min(64vw,270px); aspect-ratio:1; border-radius:50%;
+  background:radial-gradient(circle at 32% 26%, rgba(255,255,255,.6) 0, rgba(255,255,255,0) 36%), var(--ball);
+  box-shadow:inset -14px -20px 34px rgba(0,0,0,.3), 0 22px 30px -14px rgba(0,0,0,.45);
+  display:grid; place-items:center;
+  transition:background-color .15s;
+}
+.face{
+  width:60%; aspect-ratio:1; border-radius:50%; background:#fff; color:#1b2236;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; gap:2px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.18);
+}
+.letter{font-size:clamp(18px,5.5vw,26px); font-weight:800; min-height:1em}
+.num{font-size:clamp(54px,18vw,92px); font-weight:800; font-variant-numeric:tabular-nums}
+.ball.spin{animation:wobble .16s linear infinite}
+.ball.land{animation:land .45s cubic-bezier(.3,1.6,.5,1)}
+@keyframes wobble{
+  0%{transform:translate(-5px,2px) rotate(-4deg)}
+  50%{transform:translate(5px,-2px) rotate(4deg)}
+  100%{transform:translate(-5px,2px) rotate(-4deg)}
+}
+@keyframes land{0%{transform:scale(.78)}100%{transform:scale(1)}}
+
+.draw{
+  width:100%; height:68px; border:0; border-radius:20px; cursor:pointer;
+  background:var(--btn); color:var(--btn-ink);
+  font:inherit; font-size:22px; font-weight:800; letter-spacing:.04em;
+}
+.draw:active{transform:scale(.985)}
+.draw:disabled{opacity:.45; cursor:default; transform:none}
+:focus-visible{outline:3px solid var(--c0); outline-offset:3px}
+
+.recent{display:flex; gap:8px; margin:18px 0 6px; min-height:44px; align-items:center}
+.recent .label{font-size:13px; color:var(--muted); margin-right:2px; white-space:nowrap}
+.chip{
+  width:42px; height:42px; border-radius:50%; flex:none;
+  display:grid; place-items:center; color:#fff; font-weight:800; font-size:17px;
+  font-variant-numeric:tabular-nums; background:var(--ball);
+  box-shadow:inset -4px -5px 8px rgba(0,0,0,.25);
+}
+.chip.old{opacity:.7; transform:scale(.88)}
+
+.board{
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  padding:12px 10px; margin-top:14px; display:grid; gap:4px;
+}
+.board.m75{grid-template-columns:20px repeat(15,1fr); align-items:center}
+.board.m100{grid-template-columns:repeat(10,1fr)}
+.rowlabel{font-size:13px; font-weight:800; text-align:center}
+.cell{
+  aspect-ratio:1; display:grid; place-items:center; border-radius:6px;
+  font-size:11px; font-weight:800; color:var(--muted); font-variant-numeric:tabular-nums;
+  background:transparent;
+}
+.board.m100 .cell{font-size:12px}
+.cell.hit{background:var(--ball); color:#fff}
+.cell.latest{outline:2px solid var(--ink); outline-offset:1px}
+
+.tools{display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; align-items:center}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel)}
+.seg button{
+  border:0; background:transparent; color:var(--ink); font:inherit; font-size:14px; font-weight:800;
+  padding:10px 14px; min-height:44px; cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:var(--btn); color:var(--btn-ink)}
+.seg button:disabled{opacity:.4; cursor:default}
+.tool{
+  border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:12px;
+  font:inherit; font-size:14px; font-weight:800; padding:10px 14px; min-height:44px; cursor:pointer;
+}
+.tool:disabled{opacity:.4; cursor:default}
+.tool.danger.armed{background:var(--c1); border-color:var(--c1); color:#fff}
+.hint{font-size:12px; color:var(--muted); margin:10px 2px 0; min-height:1.2em}
+
+@media (prefers-reduced-motion: reduce){
+  .ball.spin,.ball.land{animation:none}
+  .draw:active{transform:none}
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>ビンゴ抽選機</h1>
+    <div class="count" id="count">0 / 75</div>
+  </header>
+
+  <section class="stage" aria-live="polite">
+    <div class="ball" id="ball">
+      <div class="face"><span class="letter" id="letter"></span><span class="num" id="num">?</span></div>
+    </div>
+  </section>
+
+  <button class="draw" id="draw" type="button">玉を出す</button>
+
+  <div class="recent" id="recent"></div>
+
+  <section class="board m75" id="board" aria-label="出た番号の一覧"></section>
+
+  <div class="tools">
+    <div class="seg" role="group" aria-label="番号の範囲">
+      <button type="button" id="m75" aria-pressed="true">1〜75</button>
+      <button type="button" id="m100" aria-pressed="false">1〜100</button>
+    </div>
+    <button class="tool" id="sound" type="button" aria-pressed="true">読み上げ オン</button>
+    <button class="tool" id="undo" type="button">1つ戻す</button>
+    <button class="tool danger" id="reset" type="button">リセット</button>
+  </div>
+  <p class="hint" id="hint"></p>
+</main>
+
+<script>
+(function(){
+  var KEY = 'bingo-draw-v1';
+  var state = { max: 75, drawn: [], sound: true };
+  var busy = false, timer = null, resetTimer = null, wakeLock = null;
+
+  var $ = function(id){ return document.getElementById(id); };
+  var ball = $('ball'), letterEl = $('letter'), numEl = $('num'), drawBtn = $('draw');
+  var board = $('board'), recent = $('recent'), countEl = $('count'), hint = $('hint');
+  var m75 = $('m75'), m100 = $('m100'), soundBtn = $('sound'), undoBtn = $('undo'), resetBtn = $('reset');
+  var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function load(){
+    try{
+      var s = JSON.parse(localStorage.getItem(KEY));
+      if(s && (s.max === 75 || s.max === 100) && Array.isArray(s.drawn)){
+        var seen = {};
+        state.max = s.max;
+        state.drawn = s.drawn.filter(function(n){
+          if(!Number.isInteger(n) || n < 1 || n > s.max || seen[n]) return false;
+          seen[n] = 1; return true;
+        });
+        state.sound = s.sound !== false;
+      }
+    }catch(e){}
+  }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+
+  function colorIdx(n){ return state.max === 75 ? Math.floor((n-1)/15) : Math.floor((n-1)/20); }
+  function colorVar(n){ return 'var(--c' + colorIdx(n) + ')'; }
+  function letterOf(n){ return state.max === 75 ? 'BINGO'.charAt(Math.floor((n-1)/15)) : ''; }
+
+  function randInt(k){
+    if(window.crypto && crypto.getRandomValues){
+      var a = new Uint32Array(1), lim = Math.floor(4294967296 / k) * k, x;
+      do{ crypto.getRandomValues(a); x = a[0]; }while(x >= lim);
+      return x % k;
+    }
+    return Math.floor(Math.random() * k);
+  }
+  function remaining(){
+    var out = [];
+    for(var i = 1; i <= state.max; i++) if(state.drawn.indexOf(i) < 0) out.push(i);
+    return out;
+  }
+
+  function buildBoard(){
+    board.className = 'board ' + (state.max === 75 ? 'm75' : 'm100');
+    board.innerHTML = '';
+    for(var n = 1; n <= state.max; n++){
+      if(state.max === 75 && (n-1) % 15 === 0){
+        var l = document.createElement('div');
+        l.className = 'rowlabel';
+        l.textContent = 'BINGO'.charAt((n-1)/15);
+        l.style.color = 'var(--c' + ((n-1)/15) + ')';
+        board.appendChild(l);
+      }
+      var c = document.createElement('div');
+      c.className = 'cell';
+      c.id = 'cell' + n;
+      c.style.setProperty('--ball', colorVar(n));
+      c.textContent = n;
+      board.appendChild(c);
+    }
+  }
+
+  function showBall(n){
+    if(n == null){
+      ball.style.setProperty('--ball', '#8a93a8');
+      letterEl.textContent = '';
+      numEl.textContent = '?';
+    }else{
+      ball.style.setProperty('--ball', colorVar(n));
+      letterEl.textContent = letterOf(n);
+      numEl.textContent = n;
+    }
+  }
+
+  function render(){
+    var last = state.drawn[state.drawn.length - 1];
+    for(var n = 1; n <= state.max; n++){
+      var c = $('cell' + n);
+      var hit = state.drawn.indexOf(n) >= 0;
+      c.classList.toggle('hit', hit);
+      c.classList.toggle('latest', n === last);
+    }
+    if(!busy) showBall(last == null ? null : last);
+
+    recent.innerHTML = '';
+    if(state.drawn.length){
+      var lab = document.createElement('span');
+      lab.className = 'label'; lab.textContent = '直近';
+      recent.appendChild(lab);
+      state.drawn.slice(-6).reverse().forEach(function(v, i){
+        var ch = document.createElement('div');
+        ch.className = 'chip' + (i ? ' old' : '');
+        ch.style.setProperty('--ball', colorVar(v));
+        ch.textContent = v;
+        recent.appendChild(ch);
+      });
+    }
+
+    countEl.textContent = state.drawn.length + ' / ' + state.max;
+    var left = state.max - state.drawn.length;
+    drawBtn.disabled = busy || left === 0;
+    drawBtn.textContent = left === 0 ? '全部出ました' : (busy ? '抽選中…' : '玉を出す');
+    undoBtn.disabled = busy || state.drawn.length === 0;
+    resetBtn.disabled = busy || state.drawn.length === 0;
+    m75.setAttribute('aria-pressed', state.max === 75);
+    m100.setAttribute('aria-pressed', state.max === 100);
+    var locked = state.drawn.length > 0 || busy;
+    m75.disabled = locked; m100.disabled = locked;
+    soundBtn.setAttribute('aria-pressed', state.sound);
+    soundBtn.textContent = '読み上げ ' + (state.sound ? 'オン' : 'オフ');
+    hint.textContent = state.drawn.length ? '範囲を変えるには、リセットしてください。' : '';
+  }
+
+  function speak(n){
+    if(!state.sound || !('speechSynthesis' in window)) return;
+    try{
+      speechSynthesis.cancel();
+      var l = letterOf(n);
+      var u = new SpeechSynthesisUtterance((l ? l + 'の' : '') + n);
+      u.lang = 'ja-JP'; u.rate = 0.9;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  function keepAwake(){
+    try{
+      if(navigator.wakeLock && !wakeLock){
+        navigator.wakeLock.request('screen').then(function(l){
+          wakeLock = l;
+          l.addEventListener('release', function(){ wakeLock = null; });
+        }).catch(function(){});
+      }
+    }catch(e){}
+  }
+
+  function draw(){
+    if(busy) return;
+    var pool = remaining();
+    if(!pool.length) return;
+    keepAwake();
+    var pick = pool[randInt(pool.length)];
+    busy = true;
+    render();
+    function land(){
+      clearInterval(timer);
+      ball.classList.remove('spin');
+      state.drawn.push(pick);
+      busy = false;
+      save();
+      showBall(pick);
+      if(!reduceMotion){
+        ball.classList.remove('land'); void ball.offsetWidth; ball.classList.add('land');
+      }
+      render();
+      speak(pick);
+    }
+    if(reduceMotion){ land(); return; }
+    ball.classList.remove('land');
+    ball.classList.add('spin');
+    timer = setInterval(function(){
+      showBall(pool[randInt(pool.length)]);
+    }, 70);
+    setTimeout(land, 1200);
+  }
+
+  function undo(){
+    if(busy || !state.drawn.length) return;
+    state.drawn.pop();
+    save(); render();
+  }
+
+  function disarm(){
+    clearTimeout(resetTimer);
+    resetBtn.classList.remove('armed');
+    resetBtn.textContent = 'リセット';
+  }
+  function reset(){
+    if(busy || !state.drawn.length) return;
+    if(!resetBtn.classList.contains('armed')){
+      resetBtn.classList.add('armed');
+      resetBtn.textContent = 'もう一度タップで全消去';
+      resetTimer = setTimeout(disarm, 3500);
+      return;
+    }
+    disarm();
+    state.drawn = [];
+    save(); render();
+  }
+
+  function setMax(m){
+    if(state.drawn.length || busy || state.max === m) return;
+    state.max = m;
+    save(); buildBoard(); render();
+  }
+
+  drawBtn.addEventListener('click', draw);
+  undoBtn.addEventListener('click', undo);
+  resetBtn.addEventListener('click', reset);
+  m75.addEventListener('click', function(){ setMax(75); });
+  m100.addEventListener('click', function(){ setMax(100); });
+  soundBtn.addEventListener('click', function(){
+    state.sound = !state.sound;
+    if(!state.sound && 'speechSynthesis' in window){ try{ speechSynthesis.cancel(); }catch(e){} }
+    save(); render();
+  });
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible' && state.drawn.length) keepAwake();
+  });
+
+  load();
+  buildBoard();
+  render();
+})();
+</script>
+</body>
+</html>
